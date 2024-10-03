@@ -1,3 +1,5 @@
+##########################################################################################################
+##########################################################################################################
 import requests
 import pandas as pd
 from datetime import datetime
@@ -6,28 +8,10 @@ from datetime import datetime
 faculty_data = pd.read_excel('faculty_scopus_id_list.xlsx')  # Adjust file name if necessary
 
 # Define your API key
-API_KEY = 'add_your_api_key_here'
-
-
-
+########################################
+API_KEY =  'd72ef41f58ca547602b39d5be185b011'
+########################################
 def get_dates():
-    while True:
-        try:
-            start_month = int(input("Please enter the start month (1-12): "))
-            if 1 <= start_month <= 12:
-                break
-            else:
-                print("Please enter a valid month (1-12).")
-        except ValueError:
-            print("Invalid input. Please enter an integer.")
-
-    while True:
-        try:
-            start_year = int(input("Please enter the start year (e.g., 2023): "))
-            break  # No specific range check for year; can be any integer
-        except ValueError:
-            print("Invalid input. Please enter an integer.")
-
     while True:
         try:
             end_month = int(input("Please enter the end month (1-12): "))
@@ -40,21 +24,47 @@ def get_dates():
 
     while True:
         try:
-            end_year = int(input("Please enter the end year (e.g., 2023): "))
-            # Ensure the end year is greater than or equal to the start year
-            if end_year > start_year or (end_year == start_year and end_month >= start_month):
-                break
-            else:
-                print(f"The end year must be greater than or equal to the start year ({start_year}), "
-                      f"or if they are the same, the end month must be greater than or equal to the start month ({start_month}).")
+            end_year = int(input("Please enter the end year (e.g., 2024): "))
+            break
         except ValueError:
             print("Invalid input. Please enter an integer.")
 
-    return start_month, start_year, end_month, end_year
+    while True:
+        try:
+            start_month = int(input("Please enter the start month (1-12): "))
+            if 1 <= start_month <= 12:
+                break
+            else:
+                print("Please enter a valid month (1-12).")
+        except ValueError:
+            print("Invalid input. Please enter an integer.")
 
-start_month, start_year, end_month, end_year = get_dates()
+    while True:
+        try:
+            start_year = int(input("Please enter the start year (e.g., 2024): "))
+            if start_year <= end_year:
+                break
+            else:
+                print(f"The start year must be less than or equal to the end year ({end_year}).")
+        except ValueError:
+            print("Invalid input. Please enter an integer.")
+
+    # Adjust years for API query if necessary
+    query_start_year = start_year
+    query_end_year = end_year
+    if start_year == end_year:
+        query_start_year = start_year - 1
+        #print(f"Note: For API query, start year adjusted to {query_start_year} to ensure different years.")
+
+    return start_month, start_year, end_month, end_year, query_start_year, query_end_year
+
+# Get user input for dates
+start_month, start_year, end_month, end_year, query_start_year, query_end_year = get_dates()
 print(f"You entered: Start Date: {start_month}/{start_year}, End Date: {end_month}/{end_year}")
-print("Scrapping the data from scopus")
+#print(f"API query will use: Start Year: {query_start_year}, End Year: {query_end_year}")
+print("\nScraping the data from Scopus\n")
+print("NOTE: To see the list of faculties whose data is being scraped, open the adjacent Excel file named 'faculty_scopus_id_list'. You can add or remove names in the future from this Excel file.")
+print("\nWorking on scraping...")
 
 all_papers = []
 
@@ -63,8 +73,7 @@ for index, row in faculty_data.iterrows():
     faculty_name = row['faculty']
     scopus_id = row['scopus']
     # API request URL for each faculty member
-    base_url = f'https://api.elsevier.com/content/search/scopus?apiKey={API_KEY}&query=AU-ID({scopus_id})&date={start_year}-{end_year}'
-    
+    base_url = f'https://api.elsevier.com/content/search/scopus?apiKey={API_KEY}&query=AU-ID({scopus_id})&date={query_start_year}-{end_year}'
     # Make the request
     response = requests.get(base_url)
     
@@ -77,12 +86,13 @@ for index, row in faculty_data.iterrows():
             publication_date_str = entry.get('prism:coverDate', 'N/A')
             if publication_date_str != 'N/A':
                 try:
-                    
                     publication_date = datetime.strptime(publication_date_str, "%Y-%m-%d")
+                    year = publication_date.year
                     month = publication_date.month
 
-                    # Filter by month 
-                    if start_month <= month <= end_month:
+                    # Filtering only if publication falls within the original input months and year
+                    #if (year == end_year and start_month <= month <= end_month):
+                    if (start_year <= year <= end_year and start_month <= month <= end_month):
                         paper_info = {
                             'Faculty': faculty_name,
                             'Title': entry.get('dc:title', 'N/A'),
@@ -100,6 +110,7 @@ for index, row in faculty_data.iterrows():
 
 df_all_papers = pd.DataFrame(all_papers)
 
-df_all_papers.to_excel(f'scopus_papers_all_faculties_{start_month}_{start_year}_to_{end_month}_{end_year}.xlsx', index=False)
-print("Data saved to excel file")
-#YashUpase_Jay
+df_all_papers.to_excel(f'faculty_scraped_data_{start_month}_{start_year}_to_{end_month}_{end_year}.xlsx', index=False)
+print("\nData saved to Excel file")
+###############################################YashUpase##################################################
+##########################################################################################################
